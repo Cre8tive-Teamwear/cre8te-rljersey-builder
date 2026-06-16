@@ -1,0 +1,530 @@
+"use client";
+
+import React, { useState } from "react";
+import SvgLayer from "./SvgLayer";
+
+export default function KitRenderer() {
+  const [activeTab, setActiveTab] = useState("design");
+
+  const [bodyDesign, setBodyDesign] = useState("001");
+  const [sleeveDesign, setSleeveDesign] = useState("001");
+  const [collarDesign, setCollarDesign] = useState("001");
+  const [brandingPos, setBrandingPos] = useState("POS1");
+
+const [colours, setColours] = useState({
+  "body-base": "#ffffff",
+  "sleeve-base": "#ffffff",
+  "collar-base": "#ffffff",
+  "trim-base": "#000000",
+
+  C1: "#a41123",
+  C2: "#ffffff",
+  C3: "#000000",
+  C4: "#ffd700",
+  C5: "#808080",
+
+  B1: "#000000",
+  B2: "#000000",
+  B3: "#000000",
+});
+
+const [clubBadge, setClubBadge] = useState(null);
+const [frontSponsor, setFrontSponsor] = useState(null);
+const [backSponsor, setBackSponsor] = useState(null);
+
+const updateColour = (
+  id: string,
+  colour: string
+) => {
+  setColours((prev) => ({
+    ...prev,
+    [id]: colour,
+  }));
+};
+
+  const bodyOptions = Array.from({ length: 25 }, (_, i) =>
+    String(i + 1).padStart(3, "0")
+  );
+
+  const sleeveOptions = Array.from({ length: 10 }, (_, i) =>
+    String(i + 1).padStart(3, "0")
+  );
+
+  const collarOptions = Array.from({ length: 5 }, (_, i) =>
+    String(i + 1).padStart(3, "0")
+  );
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6">
+
+      {/* LEFT PANEL */}
+
+      <div className="bg-white rounded-lg shadow">
+
+        <div className="flex border-b">
+
+          <button
+            className={`flex-1 p-3 font-semibold ${
+              activeTab === "design"
+                ? "bg-black text-white"
+                : ""
+            }`}
+            onClick={() => setActiveTab("design")}
+          >
+            Design
+          </button>
+
+          <button
+            className={`flex-1 p-3 font-semibold ${
+              activeTab === "embellishments"
+                ? "bg-black text-white"
+                : ""
+            }`}
+            onClick={() => setActiveTab("embellishments")}
+          >
+            Embellishments
+          </button>
+
+          <button
+            className={`flex-1 p-3 font-semibold ${
+              activeTab === "quote"
+                ? "bg-black text-white"
+                : ""
+            }`}
+            onClick={() => setActiveTab("quote")}
+          >
+            Quote
+          </button>
+
+        </div>
+
+        <div className="p-4 space-y-4">
+
+          {activeTab === "design" && (
+            <><ColorPicker
+  label="Body Colour"
+  value={colours["body-base"]}
+  onChange={(value: string) =>
+    updateColour("body-base", value)
+  }
+/>
+
+<ColorPicker
+  label="Sleeve Colour"
+  value={colours["sleeve-base"]}
+  onChange={(value: string) =>
+    updateColour("sleeve-base", value)
+  }
+/>
+
+<ColorPicker
+  label="Collar Colour"
+  value={colours["collar-base"]}
+  onChange={(value: string) =>
+    updateColour("collar-base", value)
+  }
+/>
+
+<ColorPicker
+  label="Trim Colour"
+  value={colours["trim-base"]}
+  onChange={(value: string) =>
+    updateColour("trim-base", value)
+  }
+/>
+              <SelectField
+                label="Body Design"
+                value={bodyDesign}
+                setValue={setBodyDesign}
+                options={bodyOptions}
+              />
+
+              <SelectField
+                label="Sleeve Design"
+                value={sleeveDesign}
+                setValue={setSleeveDesign}
+                options={sleeveOptions}
+              />
+
+              <SelectField
+                label="Collar Design"
+                value={collarDesign}
+                setValue={setCollarDesign}
+                options={collarOptions}
+              />
+
+              <ColorPicker
+                label="Colour 1"
+                value={colours.C1}
+                onChange={(value) =>
+                  setColours({
+                    ...colours,
+                    C1: value,
+                  })
+                }
+              />
+
+              <ColorPicker
+                label="Colour 2"
+                value={colours.C2}
+                onChange={(value) =>
+                  setColours({
+                    ...colours,
+                    C2: value,
+                  })
+                }
+              />
+
+              <ColorPicker
+                label="Colour 3"
+                value={colours.C3}
+                onChange={(value) =>
+                  setColours({
+                    ...colours,
+                    C3: value,
+                  })
+                }
+              />
+
+              <ColorPicker
+                label="Colour 4"
+                value={colours.C4}
+                onChange={(value) =>
+                  setColours({
+                    ...colours,
+                    C4: value,
+                  })
+                }
+              />
+
+              <ColorPicker
+                label="Colour 5"
+                value={colours.C5}
+                onChange={(value) =>
+                  setColours({
+                    ...colours,
+                    C5: value,
+                  })
+                }
+              />
+            </>
+          )}
+
+          {activeTab === "embellishments" && (
+            <>
+              <SelectField
+                label="Branding Position"
+                value={brandingPos}
+                setValue={setBrandingPos}
+                options={[
+                  "POS1",
+                  "POS2",
+                  "POS3",
+                  "POS4",
+                ]}
+              />
+
+<LogoUpload
+  label="Club Badge"
+  onUpload={setClubBadge}
+/>
+
+<LogoUpload
+  label="Front Sponsor"
+  onUpload={setFrontSponsor}
+/>
+
+<LogoUpload
+  label="Back Sponsor"
+  onUpload={setBackSponsor}
+/>
+            </>
+          )}
+
+          {activeTab === "quote" && (
+            <>
+              <TextField label="Club Name" />
+              <TextField label="Age Group" />
+              <TextField label="Estimated Quantity" />
+              <TextField label="Contact Name" />
+              <TextField label="Contact Email" />
+              <TextField label="Contact Number" />
+
+              <button className="w-full bg-black text-white p-3 rounded">
+                Request Quote
+              </button>
+            </>
+          )}
+
+        </div>
+      </div>
+
+      {/* PREVIEW */}
+
+      <div className="relative aspect-[2/1] w-full">
+
+        <SvgLayer
+          src="/assets/rugby/base/Rugby.svg"
+          colours={colours}
+        />
+
+        <SvgLayer
+          src={`/assets/rugby/body/body-${bodyDesign}.svg`}
+          colours={colours}
+        />
+
+        <SvgLayer
+          src={`/assets/rugby/sleeves/Sleeve-${sleeveDesign}.svg`}
+          colours={colours}
+        />
+
+        <SvgLayer
+          src={`/assets/rugby/collars/collar-${collarDesign}.svg`}
+          colours={colours}
+        />
+
+        <SvgLayer
+          src={`/assets/rugby/branding/${brandingPos}.svg`}
+          colours={colours}
+        />
+{clubBadge && (
+  <LogoZone
+    src={clubBadge}
+    x={1974.76334}
+    y={777.5394}
+    width={342.58448}
+    height={342.58448}
+  />
+)}
+
+{frontSponsor && (
+  <LogoZone
+    src={frontSponsor}
+    x={1213.968}
+    y={1192.86548}
+    width={1103.37983}
+    height={441.29287}
+  />
+)}
+
+{backSponsor && (
+  <LogoZone
+    src={backSponsor}
+    x={3682.79147}
+    y={1882.86768}
+    width={1103.37983}
+    height={441.29287}
+  />
+)}
+        <img
+          src="/assets/rugby/overlay/RJFull.png"
+          alt="Overlay"
+          className="absolute inset-0 w-full h-full pointer-events-none"
+        />
+
+      </div>
+
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  setValue,
+  options,
+}: any) {
+  return (
+    <div>
+      <label className="block mb-1 font-semibold">
+        {label}
+      </label>
+
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full border rounded p-2"
+      >
+        {options.map((item: string) => (
+          <option key={item} value={item}>
+            {item}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ColorPicker({
+  label,
+  value,
+  onChange,
+}: any) {
+  return (
+    <div>
+      <label className="block mb-1 font-semibold">
+        {label}
+      </label>
+
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-12"
+      />
+    </div>
+  );
+}
+
+function UploadField({ label }: any) {
+  return (
+    <div>
+      <label className="block mb-1 font-semibold">
+        {label}
+      </label>
+
+      <input
+        type="file"
+        className="w-full"
+      />
+    </div>
+  );
+}
+
+function TextField({ label }: any) {
+  return (
+    <div>
+      <label className="block mb-1 font-semibold">
+        {label}
+      </label>
+
+      <input
+        className="w-full border rounded p-2"
+      />
+    </div>
+  );
+}function LogoUpload({
+  label,
+  onUpload,
+}: {
+  label: string;
+  onUpload: (url: string) => void;
+}) {
+  const handleFile = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+
+    onUpload(url);
+  };
+
+  return (
+    <div>
+      <label className="block mb-1 font-semibold">
+        {label}
+      </label>
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        className="w-full"
+      />
+    </div>
+  );
+}
+
+function LogoZone({
+  src,
+  x,
+  y,
+  width,
+  height,
+}: {
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  return (
+    <img
+      src={src}
+      alt=""
+      className="absolute pointer-events-none z-20"
+      style={{
+        left: `${(x / 6000) * 100}%`,
+        top: `${(y / 3000) * 100}%`,
+        width: `${(width / 6000) * 100}%`,
+        height: `${(height / 3000) * 100}%`,
+        objectFit: "contain",
+      }}
+    />
+  );
+}
+function LogoUpload({
+  label,
+  onUpload,
+}: {
+  label: string;
+  onUpload: (url: string) => void;
+}) {
+  const handleFile = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+
+    onUpload(url);
+  };
+
+  return (
+    <div>
+      <label className="block mb-1 font-semibold">
+        {label}
+      </label>
+
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        className="w-full"
+      />
+    </div>
+  );
+}
+function LogoZone({
+  src,
+  x,
+  y,
+  width,
+  height,
+}: {
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) {
+  return (
+    <img
+      src={src}
+      alt=""
+      className="absolute pointer-events-none z-20"
+      style={{
+        left: `${(x / 6000) * 100}%`,
+        top: `${(y / 3000) * 100}%`,
+        width: `${(width / 6000) * 100}%`,
+        height: `${(height / 3000) * 100}%`,
+        objectFit: "contain",
+      }}
+    />
+  );
+}
