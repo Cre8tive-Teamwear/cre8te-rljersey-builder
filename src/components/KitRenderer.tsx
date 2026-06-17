@@ -1,27 +1,65 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { toPng } from "html-to-image";
+import { supabase } from "@/lib/supabase";
 import SvgLayer from "./SvgLayer";
 
 type Tab = "select" | "colours" | "embellishments" | "quote";
 type LogoKey = "clubBadge" | "frontSponsor" | "backSponsor";
 
+type LogoData = {
+  original: string | null;
+  transparent: string | null;
+  removeBg: boolean;
+};
+
 const COLOUR_PALETTE = [
-  { name: "White", value: "#ffffff" },
+  { name: "White", value: "#FFFFFF" },
   { name: "Black", value: "#000000" },
-  { name: "Red", value: "#c8102e" },
-  { name: "Maroon", value: "#800020" },
-  { name: "Royal Blue", value: "#0057b8" },
-  { name: "Navy", value: "#001f5b" },
-  { name: "Sky Blue", value: "#6ec6ff" },
-  { name: "Gold", value: "#ffd700" },
-  { name: "Yellow", value: "#ffeb3b" },
-  { name: "Orange", value: "#ff6f00" },
-  { name: "Green", value: "#00843d" },
-  { name: "Lime", value: "#7fff00" },
-  { name: "Purple", value: "#6a0dad" },
-  { name: "Pink", value: "#ff69b4" },
+  { name: "Charcoal", value: "#36454F" },
+  { name: "Dark Grey", value: "#4A4A4A" },
   { name: "Grey", value: "#808080" },
+  { name: "Light Grey", value: "#D3D3D3" },
+  { name: "Ecru / Cream", value: "#F5F5DC" },
+
+  { name: "Red", value: "#E60000" },
+  { name: "Dark Red", value: "#990000" },
+  { name: "Maroon", value: "#800000" },
+  { name: "Burgundy", value: "#65000B" },
+  { name: "Cerise", value: "#DE3163" },
+
+  { name: "Deep Orange", value: "#FF5500" },
+  { name: "Light Orange", value: "#FF9933" },
+  { name: "Amber", value: "#FFBF00" },
+  { name: "Gold", value: "#FFD700" },
+  { name: "Yellow", value: "#FFFF00" },
+
+  { name: "Navy", value: "#000080" },
+  { name: "Royal", value: "#4169E1" },
+  { name: "Cobalt", value: "#0047AB" },
+  { name: "Sky", value: "#87CEEB" },
+  { name: "Cyan", value: "#00FFFF" },
+  { name: "Teal", value: "#008080" },
+
+  { name: "Bottle Green", value: "#004B23" },
+  { name: "Dark Emerald", value: "#046307" },
+  { name: "Forest Green", value: "#228B22" },
+  { name: "Irish Green", value: "#009A44" },
+  { name: "Emerald", value: "#00A877" },
+  { name: "Light Emerald", value: "#50C878" },
+  { name: "Mint", value: "#98FF98" },
+
+  { name: "Purple", value: "#4B0082" },
+  { name: "Violet", value: "#7F00FF" },
+  { name: "Lilac", value: "#C8A2C8" },
+  { name: "Magenta", value: "#FF00FF" },
+  { name: "Pink", value: "#FFC0CB" },
+
+  { name: "Fluorescent Yellow", value: "#CCFF00" },
+  { name: "Fluorescent Green", value: "#39FF14" },
+  { name: "Fluorescent Orange", value: "#FF5F1F" },
+  { name: "Fluorescent Pink", value: "#FF1493" },
 ];
 
 const LOGO_ZONES = {
@@ -59,6 +97,11 @@ function zoneToPercent(zone: {
   };
 }
 
+function getLogoSrc(logo: LogoData) {
+  if (logo.removeBg && logo.transparent) return logo.transparent;
+  return logo.original;
+}
+
 export default function KitRenderer() {
   const [activeTab, setActiveTab] = useState<Tab>("select");
 
@@ -70,33 +113,38 @@ export default function KitRenderer() {
   const [fontStyle, setFontStyle] = useState("Font01");
   const [fontColour, setFontColour] = useState("#ffffff");
 
+  const [clubName, setClubName] = useState("");
+  const [ageGroup, setAgeGroup] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [quoteSuccess, setQuoteSuccess] = useState(false);
+
   const [colours, setColours] = useState({
-"body-base": "#ffffff",
-"sleeve-base": "#ffffff",
+    "body-base": "#ffffff",
+    "sleeve-base": "#ffffff",
+    "collar-base": "#ffffff",
+    "collars-base": "#ffffff",
+    collar: "#ffffff",
+    collar_base: "#ffffff",
+    "trim-base": "#000000",
+    C1: "#a41123",
+    C2: "#ffffff",
+    C3: "#000000",
+    C4: "#ffd700",
+    C5: "#808080",
+    B1: "#000000",
+    B2: "#000000",
+    B3: "#000000",
+  });
 
-"collar-base": "#ffffff",
-"collars-base": "#ffffff",
-collar: "#ffffff",
-collar_base: "#ffffff",
-
-"trim-base": "#000000",
-
-C1: "#a41123",
-C2: "#ffffff",
-C3: "#000000",
-C4: "#ffd700",
-C5: "#808080",
-
-B1: "#000000",
-B2: "#000000",
-B3: "#000000",
-});
-
-
-  const [logos, setLogos] = useState<Record<LogoKey, string | null>>({
-    clubBadge: null,
-    frontSponsor: null,
-    backSponsor: null,
+  const [logos, setLogos] = useState<Record<LogoKey, LogoData>>({
+    clubBadge: { original: null, transparent: null, removeBg: false },
+    frontSponsor: { original: null, transparent: null, removeBg: false },
+    backSponsor: { original: null, transparent: null, removeBg: false },
   });
 
   const [logoPositions, setLogoPositions] = useState({
@@ -135,24 +183,19 @@ B3: "#000000",
   );
 
   const updateColour = (id: string, colour: string) => {
-    setColours((prev) => ({
-      ...prev,
-      [id]: colour,
-    }));
+    setColours((prev) => ({ ...prev, [id]: colour }));
   };
 
   const updateCollarColour = (colour: string) => {
-setColours((prev) => ({
-...prev,
+    setColours((prev) => ({
+      ...prev,
+      "collar-base": colour,
+      "collars-base": colour,
+      collar: colour,
+      collar_base: colour,
+    }));
+  };
 
-"collar-base": colour,
-"collars-base": colour,
-
-collar: colour,
-collar_base: colour,
-
-}));
-};
   const updateBrandingColour = (colour: string) => {
     setColours((prev) => ({
       ...prev,
@@ -162,10 +205,27 @@ collar_base: colour,
     }));
   };
 
-  const handleLogoUpload = (key: LogoKey, url: string) => {
+  const handleLogoUpload = async (key: LogoKey, file: File) => {
+    const originalUrl = await fileToDataUrl(file);
+    const transparentUrl = await removeWhiteBackgroundFromFile(file);
+
     setLogos((prev) => ({
       ...prev,
-      [key]: url,
+      [key]: {
+        ...prev[key],
+        original: originalUrl,
+        transparent: transparentUrl,
+      },
+    }));
+  };
+
+  const toggleLogoBackground = (key: LogoKey) => {
+    setLogos((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        removeBg: !prev[key].removeBg,
+      },
     }));
   };
 
@@ -204,7 +264,6 @@ collar_base: colour,
     if (!preview) return;
 
     const rect = preview.getBoundingClientRect();
-
     const dxPercent = ((event.clientX - drag.startX) / rect.width) * 100;
     const dyPercent = ((event.clientY - drag.startY) / rect.height) * 100;
 
@@ -237,14 +296,107 @@ collar_base: colour,
     window.removeEventListener("mouseup", stopLogoAction);
   };
 
-  const quoteSummary = {
-    bodyDesign,
-    sleeveDesign,
-    collarDesign,
-    brandingPos,
-    fontStyle,
-    fontColour,
-    colours,
+  const submitQuote = async () => {
+    setSubmitting(true);
+    setQuoteSuccess(false);
+
+    let designImageUrl = "";
+
+    try {
+      const previewElement = document.getElementById("kit-preview");
+
+      if (previewElement) {
+        const dataUrl = await toPng(previewElement, {
+          cacheBust: true,
+          pixelRatio: 2,
+        });
+
+        const blob = await (await fetch(dataUrl)).blob();
+        const fileName = `quote-${Date.now()}.png`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("quote-designs")
+          .upload(fileName, blob, {
+            contentType: "image/png",
+          });
+
+        if (uploadError) {
+          console.error("Image upload failed:", uploadError);
+        } else {
+          const { data } = supabase.storage
+            .from("quote-designs")
+            .getPublicUrl(fileName);
+
+          designImageUrl = data.publicUrl;
+        }
+      }
+    } catch (imageError) {
+      console.error("Design image capture failed:", imageError);
+    }
+
+    const { error } = await supabase.from("quotes").insert([
+      {
+        club_name: clubName,
+        age_group: ageGroup,
+        quantity,
+        contact_name: contactName,
+        contact_email: contactEmail,
+        contact_number: contactNumber,
+        notes,
+        body_design: bodyDesign,
+        sleeve_design: sleeveDesign,
+        collar_design: collarDesign,
+        branding_position: brandingPos,
+        number_font: fontStyle,
+        number_colour: fontColour,
+        colours,
+        design_image_url: designImageUrl,
+      },
+    ]);
+
+    if (error) {
+      setSubmitting(false);
+      console.error(error);
+      alert("Quote failed");
+      return;
+    }
+
+    const emailResponse = await fetch("/api/send-quote", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        clubName,
+        ageGroup,
+        quantity,
+        contactName,
+        contactEmail,
+        contactNumber,
+        bodyDesign,
+        sleeveDesign,
+        collarDesign,
+        brandingPos,
+        fontStyle,
+        fontColour,
+        notes,
+        colours,
+        designImageUrl,
+      }),
+    });
+
+    const emailResult = await emailResponse.json();
+
+    if (!emailResponse.ok) {
+      console.error("EMAIL ERROR:", emailResult);
+      alert("Quote saved, but email failed. Check console.");
+      setSubmitting(false);
+      return;
+    }
+
+    setSubmitting(false);
+    setActiveTab("quote");
+    setQuoteSuccess(true);
   };
 
   return (
@@ -377,19 +529,25 @@ collar_base: colour,
             <>
               <SectionTitle title="Logos" />
 
-              <LogoUpload
+              <LogoControl
                 label="Club Badge"
-                onUpload={(url) => handleLogoUpload("clubBadge", url)}
+                logo={logos.clubBadge}
+                onUpload={(file) => handleLogoUpload("clubBadge", file)}
+                onToggle={() => toggleLogoBackground("clubBadge")}
               />
 
-              <LogoUpload
+              <LogoControl
                 label="Front Sponsor"
-                onUpload={(url) => handleLogoUpload("frontSponsor", url)}
+                logo={logos.frontSponsor}
+                onUpload={(file) => handleLogoUpload("frontSponsor", file)}
+                onToggle={() => toggleLogoBackground("frontSponsor")}
               />
 
-              <LogoUpload
+              <LogoControl
                 label="Back Sponsor"
-                onUpload={(url) => handleLogoUpload("backSponsor", url)}
+                logo={logos.backSponsor}
+                onUpload={(file) => handleLogoUpload("backSponsor", file)}
+                onToggle={() => toggleLogoBackground("backSponsor")}
               />
 
               <p className="text-xs text-gray-500">
@@ -426,31 +584,65 @@ collar_base: colour,
             <>
               <SectionTitle title="Request a Quote" />
 
-              <TextField label="Club Name" />
-              <TextField label="Age Group" />
-              <TextField label="Estimated Quantity" />
-              <TextField label="Contact Name" />
-              <TextField label="Contact Email" />
-              <TextField label="Contact Number" />
+              {quoteSuccess && (
+                <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+                  <strong>Quote submitted successfully.</strong>
+                  <p className="mt-1">
+                    We have received your design and will contact you shortly.
+                  </p>
+                </div>
+              )}
+
+              <TextField
+                label="Club Name"
+                value={clubName}
+                onChange={setClubName}
+              />
+
+              <TextField
+                label="Age Group"
+                value={ageGroup}
+                onChange={setAgeGroup}
+              />
+
+              <TextField
+                label="Estimated Quantity"
+                value={quantity}
+                onChange={setQuantity}
+              />
+
+              <TextField
+                label="Contact Name"
+                value={contactName}
+                onChange={setContactName}
+              />
+
+              <TextField
+                label="Contact Email"
+                value={contactEmail}
+                onChange={setContactEmail}
+              />
+
+              <TextField
+                label="Contact Number"
+                value={contactNumber}
+                onChange={setContactNumber}
+              />
 
               <textarea
                 className="w-full border rounded p-2 min-h-24"
                 placeholder="Extra notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
               />
 
               <button
-                className="w-full bg-black text-white p-3 rounded font-semibold"
-                onClick={() => {
-                  console.log("QUOTE SUMMARY:", quoteSummary);
-                  alert("Quote request ready. Next step: connect this to email.");
-                }}
+                className="w-full bg-black text-white p-3 rounded font-semibold disabled:opacity-50"
+                onClick={submitQuote}
+                disabled={submitting}
               >
-                Request Quote
+                {submitting ? "Submitting..." : "Request Quote"}
               </button>
-
-              <pre className="text-xs bg-gray-100 p-3 rounded overflow-auto">
-                {JSON.stringify(quoteSummary, null, 2)}
-              </pre>
             </>
           )}
         </div>
@@ -485,14 +677,12 @@ collar_base: colour,
 
         <SvgLayer
           src={`/assets/rugby/fonts/${fontStyle}.svg`}
-          colours={{
-            F1: fontColour,
-          }}
+          colours={{ F1: fontColour }}
         />
 
-        {logos.clubBadge && (
+        {getLogoSrc(logos.clubBadge) && (
           <DraggableLogo
-            src={logos.clubBadge}
+            src={getLogoSrc(logos.clubBadge)!}
             logoKey="clubBadge"
             selected={selectedLogo === "clubBadge"}
             position={logoPositions.clubBadge}
@@ -500,9 +690,9 @@ collar_base: colour,
           />
         )}
 
-        {logos.frontSponsor && (
+        {getLogoSrc(logos.frontSponsor) && (
           <DraggableLogo
-            src={logos.frontSponsor}
+            src={getLogoSrc(logos.frontSponsor)!}
             logoKey="frontSponsor"
             selected={selectedLogo === "frontSponsor"}
             position={logoPositions.frontSponsor}
@@ -510,9 +700,9 @@ collar_base: colour,
           />
         )}
 
-        {logos.backSponsor && (
+        {getLogoSrc(logos.backSponsor) && (
           <DraggableLogo
-            src={logos.backSponsor}
+            src={getLogoSrc(logos.backSponsor)!}
             logoKey="backSponsor"
             selected={selectedLogo === "backSponsor"}
             position={logoPositions.backSponsor}
@@ -622,18 +812,47 @@ function ColourTiles({
   );
 }
 
+function LogoControl({
+  label,
+  logo,
+  onUpload,
+  onToggle,
+}: {
+  label: string;
+  logo: LogoData;
+  onUpload: (file: File) => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="space-y-2 border rounded p-3">
+      <LogoUpload label={label} onUpload={onUpload} />
+
+      {logo.original && (
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            checked={logo.removeBg}
+            onChange={onToggle}
+          />
+          Remove white background
+        </label>
+      )}
+    </div>
+  );
+}
+
 function LogoUpload({
   label,
   onUpload,
 }: {
   label: string;
-  onUpload: (url: string) => void;
+  onUpload: (file: File) => void;
 }) {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    onUpload(URL.createObjectURL(file));
+    onUpload(file);
   };
 
   return (
@@ -660,12 +879,7 @@ function DraggableLogo({
   src: string;
   logoKey: LogoKey;
   selected: boolean;
-  position: {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  };
+  position: { left: number; top: number; width: number; height: number };
   onMouseDown: (
     e: React.MouseEvent,
     key: LogoKey,
@@ -702,11 +916,95 @@ function DraggableLogo({
   );
 }
 
-function TextField({ label }: { label: string }) {
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+
+    reader.onerror = reject;
+
+    reader.readAsDataURL(file);
+  });
+}
+
+async function removeWhiteBackgroundFromFile(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", {
+        willReadFrequently: true,
+      });
+
+      if (!ctx) {
+        resolve(url);
+        return;
+      }
+
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+
+      ctx.drawImage(image, 0, 0);
+
+      const imageData = ctx.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const red = data[i];
+        const green = data[i + 1];
+        const blue = data[i + 2];
+
+        if (red > 220 && green > 220 && blue > 220) {
+          data[i + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      const transparentUrl = canvas.toDataURL("image/png");
+
+      URL.revokeObjectURL(url);
+
+      resolve(transparentUrl);
+    };
+
+    image.onerror = () => {
+      resolve(url);
+    };
+
+    image.src = url;
+  });
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div>
       <label className="block mb-1 font-semibold">{label}</label>
-      <input className="w-full border rounded p-2" />
+
+      <input
+        className="w-full border rounded p-2"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
