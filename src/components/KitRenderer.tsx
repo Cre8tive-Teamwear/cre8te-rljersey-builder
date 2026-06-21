@@ -5,8 +5,14 @@ import { toPng } from "html-to-image";
 import { supabase } from "@/lib/supabase";
 import SvgLayer from "./SvgLayer";
 
-type Tab = "select" | "colours" | "embellishments" | "quote";
 type LogoKey = "clubBadge" | "frontSponsor" | "backSponsor";
+type AccordionKey =
+  | "select"
+  | "garmentColours"
+  | "designColours"
+  | "logos"
+  | "numbers"
+  | "quote";
 
 type LogoData = {
   original: string | null;
@@ -62,6 +68,55 @@ const COLOUR_PALETTE = [
   { name: "Fluorescent Pink", value: "#FF1493" },
 ];
 
+const BODY_DESIGN_COLOURS: Record<string, string[]> = {
+  "001": ["C1"],
+  "002": ["C1", "C2"],
+  "003": ["C1"],
+  "004": ["C1", "C2", "C3"],
+  "005": ["C1"],
+  "006": ["C1"],
+  "007": ["C1", "C2", "C3", "C4", "C5"],
+  "008": ["C1"],
+  "009": ["C1", "C2"],
+  "010": ["C1", "C2"],
+  "011": ["C1", "C2"],
+  "012": ["C1", "C2"],
+  "013": ["C1", "C2"],
+  "014": ["C1"],
+  "015": ["C1", "C2"],
+  "016": ["C1", "C2"],
+  "017": ["C1", "C2", "C3"],
+  "018": ["C1", "C2"],
+  "019": ["C1"],
+  "020": ["C1", "C2"],
+  "021": ["C1", "C2", "C3"],
+  "022": ["C1", "C2"],
+  "023": ["C1"],
+  "024": ["C1"],
+  "025": ["C1", "C2"],
+};
+
+const SLEEVE_DESIGN_COLOURS: Record<string, string[]> = {
+  "001": ["C1"],
+  "002": ["C1", "C2"],
+  "003": ["C1", "C2"],
+  "004": ["C1", "C2"],
+  "005": ["C1", "C2"],
+  "006": ["C1", "C2"],
+  "007": ["C1", "C2"],
+  "008": ["C1", "C2"],
+  "009": ["C1", "C2"],
+  "010": ["C1"],
+};
+
+const COLLAR_DESIGN_COLOURS: Record<string, string[]> = {
+  "001": ["C1"],
+  "002": ["C1", "C2"],
+  "003": ["C1", "C2"],
+  "004": ["C1"],
+  "005": ["C1"],
+};
+
 const LOGO_ZONES = {
   clubBadge: {
     x: 1974.76334,
@@ -103,7 +158,14 @@ function getLogoSrc(logo: LogoData) {
 }
 
 export default function KitRenderer() {
-  const [activeTab, setActiveTab] = useState<Tab>("select");
+  const [openSections, setOpenSections] = useState<Record<AccordionKey, boolean>>({
+    select: true,
+    garmentColours: true,
+    designColours: true,
+    logos: false,
+    numbers: false,
+    quote: false,
+  });
 
   const [bodyDesign, setBodyDesign] = useState("001");
   const [sleeveDesign, setSleeveDesign] = useState("001");
@@ -112,6 +174,8 @@ export default function KitRenderer() {
 
   const [fontStyle, setFontStyle] = useState("Font01");
   const [fontColour, setFontColour] = useState("#ffffff");
+  const [showNumberBlock, setShowNumberBlock] = useState(false);
+  const [numberBlockColour, setNumberBlockColour] = useState("#000000");
 
   const [clubName, setClubName] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
@@ -123,7 +187,7 @@ export default function KitRenderer() {
   const [submitting, setSubmitting] = useState(false);
   const [quoteSuccess, setQuoteSuccess] = useState(false);
 
-  const [colours, setColours] = useState({
+  const [colours, setColours] = useState<Record<string, string>>({
     "body-base": "#ffffff",
     "sleeve-base": "#ffffff",
     "collar-base": "#ffffff",
@@ -181,6 +245,21 @@ export default function KitRenderer() {
   const fontOptions = Array.from({ length: 10 }, (_, i) =>
     `Font${String(i + 1).padStart(2, "0")}`
   );
+
+  const activeDesignColours = Array.from(
+    new Set([
+      ...(BODY_DESIGN_COLOURS[bodyDesign] ?? []),
+      ...(SLEEVE_DESIGN_COLOURS[sleeveDesign] ?? []),
+      ...(COLLAR_DESIGN_COLOURS[collarDesign] ?? []),
+    ])
+  ).sort();
+
+  const toggleSection = (section: AccordionKey) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   const updateColour = (id: string, colour: string) => {
     setColours((prev) => ({ ...prev, [id]: colour }));
@@ -379,6 +458,8 @@ export default function KitRenderer() {
         brandingPos,
         fontStyle,
         fontColour,
+        showNumberBlock,
+        numberBlockColour,
         notes,
         colours,
         designImageUrl,
@@ -395,256 +476,241 @@ export default function KitRenderer() {
     }
 
     setSubmitting(false);
-    setActiveTab("quote");
     setQuoteSuccess(true);
+    setOpenSections((prev) => ({
+      ...prev,
+      quote: true,
+    }));
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6">
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="grid grid-cols-2 border-b text-sm">
-          <TabButton
-            label="Select Designs"
-            active={activeTab === "select"}
-            onClick={() => setActiveTab("select")}
-          />
+        <div className="p-4 space-y-3 max-h-[85vh] overflow-y-auto">
+          <AccordionSection
+            title="1. Select Designs"
+            open={openSections.select}
+            onClick={() => toggleSection("select")}
+          >
+            <SelectField
+              label="Body Design"
+              value={bodyDesign}
+              setValue={setBodyDesign}
+              options={bodyOptions}
+            />
 
-          <TabButton
-            label="Design Colours"
-            active={activeTab === "colours"}
-            onClick={() => setActiveTab("colours")}
-          />
+            <SelectField
+              label="Sleeve Design"
+              value={sleeveDesign}
+              setValue={setSleeveDesign}
+              options={sleeveOptions}
+            />
 
-          <TabButton
-            label="Embellishments"
-            active={activeTab === "embellishments"}
-            onClick={() => setActiveTab("embellishments")}
-          />
+            <SelectField
+              label="Collar Design"
+              value={collarDesign}
+              setValue={setCollarDesign}
+              options={collarOptions}
+            />
 
-          <TabButton
-            label="Request Quote"
-            active={activeTab === "quote"}
-            onClick={() => setActiveTab("quote")}
-          />
-        </div>
+            <SelectField
+              label="Branding Position"
+              value={brandingPos}
+              setValue={setBrandingPos}
+              options={["POS1", "POS2", "POS3", "POS4"]}
+            />
+          </AccordionSection>
 
-        <div className="p-4 space-y-5 max-h-[80vh] overflow-y-auto">
-          {activeTab === "select" && (
-            <>
-              <SectionTitle title="Select Designs" />
+          <AccordionSection
+            title="2. Garment Colours"
+            open={openSections.garmentColours}
+            onClick={() => toggleSection("garmentColours")}
+          >
+            <ColourTiles
+              label="Body Colour"
+              value={colours["body-base"]}
+              onChange={(value) => updateColour("body-base", value)}
+            />
 
-              <SelectField
-                label="Body Design"
-                value={bodyDesign}
-                setValue={setBodyDesign}
-                options={bodyOptions}
-              />
+            <ColourTiles
+              label="Sleeve Colour"
+              value={colours["sleeve-base"]}
+              onChange={(value) => updateColour("sleeve-base", value)}
+            />
 
-              <SelectField
-                label="Sleeve Design"
-                value={sleeveDesign}
-                setValue={setSleeveDesign}
-                options={sleeveOptions}
-              />
+            <ColourTiles
+              label="Collar Colour"
+              value={colours["collar-base"]}
+              onChange={updateCollarColour}
+            />
 
-              <SelectField
-                label="Collar Design"
-                value={collarDesign}
-                setValue={setCollarDesign}
-                options={collarOptions}
-              />
+            <ColourTiles
+              label="Trim Colour"
+              value={colours["trim-base"]}
+              onChange={(value) => updateColour("trim-base", value)}
+            />
+          </AccordionSection>
 
-              <SelectField
-                label="Branding Position"
-                value={brandingPos}
-                setValue={setBrandingPos}
-                options={["POS1", "POS2", "POS3", "POS4"]}
-              />
-            </>
-          )}
-
-          {activeTab === "colours" && (
-            <>
-              <SectionTitle title="Garment Colours" />
-
-              <ColourTiles
-                label="Body Colour"
-                value={colours["body-base"]}
-                onChange={(value) => updateColour("body-base", value)}
-              />
-
-              <ColourTiles
-                label="Sleeve Colour"
-                value={colours["sleeve-base"]}
-                onChange={(value) => updateColour("sleeve-base", value)}
-              />
-
-              <ColourTiles
-                label="Collar Colour"
-                value={colours["collar-base"]}
-                onChange={updateCollarColour}
-              />
-
-              <ColourTiles
-                label="Trim Colour"
-                value={colours["trim-base"]}
-                onChange={(value) => updateColour("trim-base", value)}
-              />
-
-              <SectionTitle title="Design Colours" />
-
-              <ColourTiles
-                label="Colour 1"
-                value={colours.C1}
-                onChange={(value) => updateColour("C1", value)}
-              />
-
-              <ColourTiles
-                label="Colour 2"
-                value={colours.C2}
-                onChange={(value) => updateColour("C2", value)}
-              />
-
-              <ColourTiles
-                label="Colour 3"
-                value={colours.C3}
-                onChange={(value) => updateColour("C3", value)}
-              />
-
-              <ColourTiles
-                label="Colour 4"
-                value={colours.C4}
-                onChange={(value) => updateColour("C4", value)}
-              />
-
-              <ColourTiles
-                label="Colour 5"
-                value={colours.C5}
-                onChange={(value) => updateColour("C5", value)}
-              />
-            </>
-          )}
-
-          {activeTab === "embellishments" && (
-            <>
-              <SectionTitle title="Logos" />
-
-              <LogoControl
-                label="Club Badge"
-                logo={logos.clubBadge}
-                onUpload={(file) => handleLogoUpload("clubBadge", file)}
-                onToggle={() => toggleLogoBackground("clubBadge")}
-              />
-
-              <LogoControl
-                label="Front Sponsor"
-                logo={logos.frontSponsor}
-                onUpload={(file) => handleLogoUpload("frontSponsor", file)}
-                onToggle={() => toggleLogoBackground("frontSponsor")}
-              />
-
-              <LogoControl
-                label="Back Sponsor"
-                logo={logos.backSponsor}
-                onUpload={(file) => handleLogoUpload("backSponsor", file)}
-                onToggle={() => toggleLogoBackground("backSponsor")}
-              />
-
-              <p className="text-xs text-gray-500">
-                Click a logo on the shirt to select it. Drag to move. Use the
-                bottom-right handle to resize.
+          <AccordionSection
+            title="3. Design Colours"
+            open={openSections.designColours}
+            onClick={() => toggleSection("designColours")}
+          >
+            {activeDesignColours.length > 0 ? (
+              activeDesignColours.map((colourId) => (
+                <ColourTiles
+                  key={colourId}
+                  label={`Colour ${colourId.replace("C", "")}`}
+                  value={colours[colourId]}
+                  onChange={(value) => updateColour(colourId, value)}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-gray-500">
+                No extra design colours are used by the selected designs.
               </p>
+            )}
+          </AccordionSection>
 
-              <SectionTitle title="Numbers" />
+          <AccordionSection
+            title="4. Logos & Sponsors"
+            open={openSections.logos}
+            onClick={() => toggleSection("logos")}
+          >
+            <LogoControl
+              label="Club Badge"
+              logo={logos.clubBadge}
+              onUpload={(file) => handleLogoUpload("clubBadge", file)}
+              onToggle={() => toggleLogoBackground("clubBadge")}
+            />
 
-              <SelectField
-                label="Number Font"
-                value={fontStyle}
-                setValue={setFontStyle}
-                options={fontOptions}
+            <LogoControl
+              label="Front Sponsor"
+              logo={logos.frontSponsor}
+              onUpload={(file) => handleLogoUpload("frontSponsor", file)}
+              onToggle={() => toggleLogoBackground("frontSponsor")}
+            />
+
+            <LogoControl
+              label="Back Sponsor"
+              logo={logos.backSponsor}
+              onUpload={(file) => handleLogoUpload("backSponsor", file)}
+              onToggle={() => toggleLogoBackground("backSponsor")}
+            />
+
+            <p className="text-xs text-gray-500">
+              Click a logo on the shirt to select it. Drag to move. Use the
+              bottom-right handle to resize.
+            </p>
+          </AccordionSection>
+
+          <AccordionSection
+            title="5. Numbers"
+            open={openSections.numbers}
+            onClick={() => toggleSection("numbers")}
+          >
+            <SelectField
+              label="Number Font"
+              value={fontStyle}
+              setValue={setFontStyle}
+              options={fontOptions}
+            />
+
+            <ColourTiles
+              label="Number Colour"
+              value={fontColour}
+              onChange={setFontColour}
+            />
+
+            <label className="flex items-center gap-2 text-sm font-semibold">
+              <input
+                type="checkbox"
+                checked={showNumberBlock}
+                onChange={(e) => setShowNumberBlock(e.target.checked)}
               />
+              Add colour block behind number
+            </label>
 
+            {showNumberBlock && (
               <ColourTiles
-                label="Number Colour"
-                value={fontColour}
-                onChange={setFontColour}
+                label="Number Block Colour"
+                value={numberBlockColour}
+                onChange={setNumberBlockColour}
               />
+            )}
 
-              <SectionTitle title="Branding" />
+            <ColourTiles
+              label="Branding Colour"
+              value={colours.B1}
+              onChange={updateBrandingColour}
+            />
+          </AccordionSection>
 
-              <ColourTiles
-                label="Branding Colour"
-                value={colours.B1}
-                onChange={updateBrandingColour}
-              />
-            </>
-          )}
+          <AccordionSection
+            title="6. Request a Quote"
+            open={openSections.quote}
+            onClick={() => toggleSection("quote")}
+          >
+            {quoteSuccess && (
+              <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
+                <strong>Quote submitted successfully.</strong>
+                <p className="mt-1">
+                  We have received your design and will contact you shortly.
+                </p>
+              </div>
+            )}
 
-          {activeTab === "quote" && (
-            <>
-              <SectionTitle title="Request a Quote" />
+            <TextField
+              label="Club Name"
+              value={clubName}
+              onChange={setClubName}
+            />
 
-              {quoteSuccess && (
-                <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-800">
-                  <strong>Quote submitted successfully.</strong>
-                  <p className="mt-1">
-                    We have received your design and will contact you shortly.
-                  </p>
-                </div>
-              )}
+            <TextField
+              label="Age Group"
+              value={ageGroup}
+              onChange={setAgeGroup}
+            />
 
-              <TextField
-                label="Club Name"
-                value={clubName}
-                onChange={setClubName}
-              />
+            <TextField
+              label="Estimated Quantity"
+              value={quantity}
+              onChange={setQuantity}
+            />
 
-              <TextField
-                label="Age Group"
-                value={ageGroup}
-                onChange={setAgeGroup}
-              />
+            <TextField
+              label="Contact Name"
+              value={contactName}
+              onChange={setContactName}
+            />
 
-              <TextField
-                label="Estimated Quantity"
-                value={quantity}
-                onChange={setQuantity}
-              />
+            <TextField
+              label="Contact Email"
+              value={contactEmail}
+              onChange={setContactEmail}
+            />
 
-              <TextField
-                label="Contact Name"
-                value={contactName}
-                onChange={setContactName}
-              />
+            <TextField
+              label="Contact Number"
+              value={contactNumber}
+              onChange={setContactNumber}
+            />
 
-              <TextField
-                label="Contact Email"
-                value={contactEmail}
-                onChange={setContactEmail}
-              />
+            <textarea
+              className="w-full border rounded p-2 min-h-24"
+              placeholder="Extra notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
 
-              <TextField
-                label="Contact Number"
-                value={contactNumber}
-                onChange={setContactNumber}
-              />
-
-              <textarea
-                className="w-full border rounded p-2 min-h-24"
-                placeholder="Extra notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-
-              <button
-                className="w-full bg-black text-white p-3 rounded font-semibold disabled:opacity-50"
-                onClick={submitQuote}
-                disabled={submitting}
-              >
-                {submitting ? "Submitting..." : "Request Quote"}
-              </button>
-            </>
-          )}
+            <button
+              className="w-full bg-black text-white p-3 rounded font-semibold disabled:opacity-50"
+              onClick={submitQuote}
+              disabled={submitting}
+            >
+              {submitting ? "Submitting..." : "Request Quote"}
+            </button>
+          </AccordionSection>
         </div>
       </div>
 
@@ -674,6 +740,13 @@ export default function KitRenderer() {
           src={`/assets/rugby/branding/${brandingPos}.svg`}
           colours={colours}
         />
+
+        {showNumberBlock && (
+          <SvgLayer
+            src="/assets/rugby/fonts/NumberBlock.svg"
+            colours={{ NB1: numberBlockColour }}
+          />
+        )}
 
         <SvgLayer
           src={`/assets/rugby/fonts/${fontStyle}.svg`}
@@ -720,30 +793,31 @@ export default function KitRenderer() {
   );
 }
 
-function TabButton({
-  label,
-  active,
+function AccordionSection({
+  title,
+  open,
   onClick,
+  children,
 }: {
-  label: string;
-  active: boolean;
+  title: string;
+  open: boolean;
   onClick: () => void;
+  children: React.ReactNode;
 }) {
   return (
-    <button
-      className={`p-3 font-semibold border-b ${
-        active ? "bg-black text-white" : "bg-white text-black"
-      }`}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
-  );
-}
+    <div className="border rounded-lg overflow-hidden bg-white">
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full flex items-center justify-between bg-gray-100 px-4 py-3 font-bold text-left"
+      >
+        <span>{title}</span>
+        <span className="text-xl leading-none">{open ? "−" : "+"}</span>
+      </button>
 
-function SectionTitle({ title }: { title: string }) {
-  return <h3 className="text-lg font-bold border-b pb-2">{title}</h3>;
+      {open && <div className="p-4 space-y-5">{children}</div>}
+    </div>
+  );
 }
 
 function SelectField({
