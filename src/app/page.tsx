@@ -4,9 +4,11 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-100 p-8">
 
-      <h1 className="text-4xl font-bold text-center mb-8">
-        Rugby Kit Builder
-      </h1>
+     <img
+  src="/assets/branding/cre8te-a-jersey-logo.png"
+  alt="Cre8te A Jersey"
+  className="mx-auto mb-6 w-full max-w-[520px]"
+/>
 
       <KitRenderer />
 
